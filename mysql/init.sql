@@ -17,7 +17,7 @@ CREATE USER IF NOT EXISTS 'wordpress_user'@'%' IDENTIFIED BY 'wordpress_local_se
 -- 3. ISOLATED PRIVILEGE SCOPING (Least Privilege Principle)
 -- ==============================================================================
 -- Restrict the Laravel user strictly to its own operational schema database
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER, INTENT_RECOVERY, REFERENCES 
+GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER, REFERENCES 
     ON `laravel_db`.* TO 'laravel_user'@'%';
 
 -- Restrict the WordPress user strictly to its own operational schema database
@@ -28,7 +28,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER, REFERENCES
 -- 4. ROOT MAINTENANCE & PRIVILEGE COMMIT
 -- ==============================================================================
 -- Maintain broad network privileges for the root operator for local GUI connections
-GRANT ALL PRIVILEGES ON *.* TO 'root'@'%' WITH GRANT OPTION;
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'localhost' WITH GRANT OPTION;
 
 -- Flush privileges to write changes to memory immediately
 FLUSH PRIVILEGES;
