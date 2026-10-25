@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # --- Presentation Layer ---
+  frontend-ui:
+    container_name: local_nextjs
+    build:
+      context: ./frontend-ui
+      dockerfile: Dockerfile
+    volumes:
+      - ./frontend-ui:/app
+      - /app/.next
+      - /app/node_modules
+    environment:
+      - NEXT_PUBLIC_API_URL=http://api.app.test
+      - NEXT_PUBLIC_WP_URL=http://cms.app.test
+    networks:
+      - app-network
+
+  # --- Application Layer ---
+  backend-api:
+    container_name: local_laravel
+    build:
+      context: ./backend-api
+      dockerfile: Dockerfile
+    volumes:
+      - ./backend-api:/var/www/html
+    environment:
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql-db
+      - DB_PORT=3306
+      - DB_DATABASE=laravel_db
+      - DB_USERNAME=root
+      - DB_PASSWORD=secretlocalpwd
+    depends_on:
+      - mysql-db
+    networks:
+      - app-network
+
+  # --- Content Management Layer ---
+  cms-content:
+    container_name: local_wordpress
+    image: wordpress:6.5-php8.2-fpm-alpine # FPM variant is fast and works well behind Nginx
+    volumes:
+      - ./cms-content:/var/www/html
+      - ./docker/wordpress/php.ini:/usr/local/etc/php/conf.d/custom.ini
+    environment:
+      - WORDPRESS_DB_HOST=mysql-db
+      - WORDPRESS_DB_NAME=wordpress_db
+      - WORDPRESS_DB_USER=root
+      - WORDPRESS_DB_PASSWORD=secretlocalpwd
+    depends_on:
+      - mysql-db
+    networks:
+      - app-network
+
+  # --- Centralized Database Store ---
+  mysql-db:
+    container_name: local_mysql
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - "3306:3306" # Exposed locally to allow direct GUI connections (e.g. TablePlus, DBeaver)
+    environment:
+      - MYSQL_ROOT_PASSWORD=secretlocalpwd
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro # Initialization hook script
+    networks:
+      - app-network
+
+  # --- Local Router (The Glue) ---
+  local-proxy:
+    container_name: local_nginx_proxy
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - ./frontend-ui:/app
+      - ./backend-api:/var/www/html/backend
+      - ./cms-content:/var/www/html/cms
+    depends_on:
+      - frontend-ui
+      - backend-api
+      - cms-content
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+    driver: local
